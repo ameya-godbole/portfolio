@@ -1,0 +1,206 @@
+# ═══════════════════════════════════════════════════════════════
+# CI/CD Pipeline — Ameya Godbole Portfolio
+# ═══════════════════════════════════════════════════════════════
+# CI: Checkout → Maven Build → Test → Artifact
+# CD: Docker Build → ECR Push → Vault Secrets → EC2 Deploy
+#
+# Docs: docs/cicd-pipeline.md
+# ═══════════════════════════════════════════════════════════════
+
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+env:
+  AWS_REGION: eu-west-1
+  ECR_REPOSITORY: portfolio-app
+  EC2_USER: ec2-user
+  JAVA_VERSION: '17'
+  VAULT_ADDR: ${{ vars.VAULT_ADDR }}
+
+jobs:
+  # ─────────────────────────────
+  # CI: Build & Test
+  # ─────────────────────────────
+  build-and-test:
+    name: Build & Test (Maven)
+    runs-on: ubuntu-latest
+    outputs:
+      image-tag: ${{ steps.meta.outputs.tag }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Java ${{ env.JAVA_VERSION }}
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: temurin
+          cache: maven
+
+      - name: Build with Maven
+        run: mvn clean package -DskipTests --batch-mode
+
+      - name: Run tests
+        run: mvn test --batch-mode
+
+      - name: Publish test report
+        uses: dorny/test-reporter@v1
+        if: always()
+        with:
+          name: JUnit Tests
+          path: target/surefire-reports/*.xml
+          reporter: java-junit
+
+      - name: Check code coverage (JaCoCo)
+        run: |
+          mvn jacoco:report --batch-mode
+          # Fail if line coverage < 80%
+          awk -F',' '
+            NR > 1 {
+              missed += $4; covered += $5
+            }
+            END {
+              total = missed + covered
+              if (total > 0) {
+                pct = (covered / total) * 100
+                printf "Line coverage: %.1f%%\n", pct
+                if (pct < 80) {
+                  print "ERROR: Coverage below 80% threshold"
+                  exit 1
+                }
+              }
+            }
+          ' target/site/jacoco/jacoco.csv
+
+      - name: Set image tag
+        id: meta
+        run: echo "tag=$(echo $GITHUB_SHA | head -c7)" >> $GITHUB_OUTPUT
+
+      - name: Upload JAR artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-jar
+          path: target/*.jar
+          retention-days: 5
+
+  # ─────────────────────────────
+  # CD: Build Docker & Push ECR
+  # ─────────────────────────────
+  publish:
+    name: Build & Push Docker Image
+    runs-on: ubuntu-latest
+    needs: build-and-test
+    if: github.ref == 'refs/heads/main'
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download JAR artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: app-jar
+          path: target/
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::${{ vars.AWS_ACCOUNT_ID }}:role/github-actions-ecr
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: ecr-login
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build, tag & push Docker image
+        env:
+          REGISTRY: ${{ steps.ecr-login.outputs.registry }}
+          IMAGE_TAG: ${{ needs.build-and-test.outputs.image-tag }}
+        run: |
+          docker build -t $REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
+          docker tag $REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG $REGISTRY/$ECR_REPOSITORY:latest
+          docker push $REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+          docker push $REGISTRY/$ECR_REPOSITORY:latest
+          echo "IMAGE=$REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_ENV
+
+      - name: Scan image for vulnerabilities (Trivy)
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ env.IMAGE }}
+          format: table
+          exit-code: 1
+          severity: CRITICAL
+
+  # ─────────────────────────────
+  # CD: Deploy to EC2 via Vault
+  # ─────────────────────────────
+  deploy:
+    name: Deploy to AWS EC2
+    runs-on: ubuntu-latest
+    needs: [build-and-test, publish]
+    if: github.ref == 'refs/heads/main'
+    environment: production
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - name: Fetch secrets from HashiCorp Vault
+        uses: hashicorp/vault-action@v3
+        with:
+          url: ${{ env.VAULT_ADDR }}
+          method: jwt
+          role: github-actions-deploy
+          secrets: |
+            secret/data/prod/app DB_URL | DB_URL ;
+            secret/data/prod/app DB_PASSWORD | DB_PASSWORD ;
+            secret/data/prod/app APP_SECRET_KEY | APP_SECRET_KEY
+
+      - name: Deploy to EC2
+        uses: appleboy/ssh-action@v1
+        env:
+          IMAGE_TAG: ${{ needs.build-and-test.outputs.image-tag }}
+          AWS_ACCOUNT_ID: ${{ vars.AWS_ACCOUNT_ID }}
+        with:
+          host: ${{ vars.EC2_HOST }}
+          username: ${{ env.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          envs: IMAGE_TAG,AWS_ACCOUNT_ID,DB_URL,DB_PASSWORD,APP_SECRET_KEY
+          script: |
+            # Login to ECR
+            aws ecr get-login-password --region eu-west-1 | \
+              docker login --username AWS --password-stdin \
+              $AWS_ACCOUNT_ID.dkr.ecr.eu-west-1.amazonaws.com
+
+            # Pull new image
+            docker pull $AWS_ACCOUNT_ID.dkr.ecr.eu-west-1.amazonaws.com/portfolio-app:$IMAGE_TAG
+
+            # Stop existing container
+            docker stop app || true
+            docker rm app || true
+
+            # Run new container with secrets injected at runtime
+            docker run -d \
+              --name app \
+              --restart unless-stopped \
+              -p 8080:8080 \
+              -e DB_URL="$DB_URL" \
+              -e DB_PASSWORD="$DB_PASSWORD" \
+              -e APP_SECRET_KEY="$APP_SECRET_KEY" \
+              $AWS_ACCOUNT_ID.dkr.ecr.eu-west-1.amazonaws.com/portfolio-app:$IMAGE_TAG
+
+            # Health check
+            sleep 10
+            curl -f http://localhost:8080/health || (docker stop app && exit 1)
+            echo "✅ Deployment successful — image tag: $IMAGE_TAG"

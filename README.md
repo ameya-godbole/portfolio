@@ -1,187 +1,289 @@
-# Personal Portfolio
+# Ameya Godbole — Portfolio Website
 
-A modern, production-ready portfolio website built with **Next.js 16**, **TypeScript**, **Tailwind CSS 4**, and **Framer Motion**.
+A modern, production-ready portfolio website built with **Next.js 16**, **TypeScript**, **Tailwind CSS**, and **Framer Motion**. Designed to showcase cloud & DevOps engineering expertise through an interactive, content-driven experience.
 
-## Features
+## Overview
 
-- ✅ Dark / light theme with smooth toggle
-- ✅ Video-first project showcase (local, YouTube, Vimeo support)
-- ✅ Featured showreel / demo reel section
-- ✅ Animated expertise grid with skill chips
-- ✅ Testimonials section
-- ✅ Accordion-style career timeline
-- ✅ Contact form with server-side validation & spam protection
-- ✅ SEO: Open Graph, Twitter Cards, JSON-LD, sitemap, robots.txt
-- ✅ Accessible: skip-to-content, ARIA attributes, reduced-motion support
-- ✅ Mobile-first responsive design
-- ✅ Analytics abstraction (ready for PostHog / Plausible / Vercel Analytics)
+The portfolio is a single-page application with the following sections:
+
+| Section | Description |
+|---|---|
+| **Hero** | Animated intro with name, headline, and CTA |
+| **Cloud Badges** | AWS, Azure, Kubernetes, Terraform certification badges |
+| **Showreel** | Featured demo reel / video showcase |
+| **About** | Bio, snapshot numbers, and professional summary |
+| **Gallery** | Photo gallery with lightbox |
+| **Documents** | Downloadable résumé, certs, and reference docs |
+| **Projects** | Video-first project cards (local / YouTube / Vimeo) |
+| **Terminal** | Interactive terminal emulator showcasing CLI fluency |
+| **Code Snippets** | Syntax-highlighted code samples |
+| **Experience** | Accordion-style career timeline |
+| **Expertise** | Animated skill grid with categorised chips |
+| **Certifications** | Certificate cards with verification links |
+| **Testimonials** | Colleague and manager endorsements |
+| **Contact** | Form with server-side validation and spam protection |
+
+---
 
 ## Quick Start
 
 ```bash
-# Install dependencies
+git clone https://github.com/ameya-godbole/portfolio
+cd portfolio
 npm install
-
-# Start development server
 npm run dev
-
-# Build for production
-npm run build
-
-# Start production server
-npm start
+# Open http://localhost:3000
 ```
 
-## How to Customize
-
-### 1. Update your profile
-
-Edit **`src/content/profile.ts`** — this controls:
-- Name, title, location, email
-- Hero section copy (headline, summary, CTAs)
-- Snapshot metrics (years of experience, projects shipped, etc.)
-- About section paragraphs and focus areas
-- Testimonials / recommendations
-- Contact section copy
-- SEO metadata (site name, description, OG image, Twitter handle)
-
-### 2. Add your experience
-
-Edit **`src/content/experience.ts`** — each entry in the array becomes a row in the career timeline. Include:
-- Company, role, dates, location
-- Summary, responsibilities, achievements
-- Impact metrics and technologies
-
-### 3. Add projects
-
-Edit **`src/content/projects.ts`** — each entry generates:
-- A card on the homepage
-- A full `/projects/[slug]` detail page
-
-#### Adding a project with video
-
-```typescript
-{
-  id: "my-project",
-  slug: "my-project",
-  title: "My Project",
-  subtitle: "A one-line description.",
-  // ... other fields ...
-  video: {
-    // Local video file (place in /public/videos/)
-    provider: "local",
-    src: "/videos/my-project.mp4",
-    poster: "/images/projects/my-project-poster.jpg",
-    duration: "2:30",
-    alt: "Demo of my project",
-
-    // OR YouTube
-    // provider: "youtube",
-    // src: "https://www.youtube.com/watch?v=VIDEO_ID",
-
-    // OR Vimeo
-    // provider: "vimeo",
-    // src: "https://vimeo.com/VIDEO_ID",
-  },
-}
-```
-
-### 4. Update expertise areas
-
-Edit **`src/content/expertise.ts`** — organized around outcomes, not a flat technology list. Each area has an icon, description, and technology list.
-
-### 5. Update the showreel
-
-Edit the `showreelData` object in **`src/components/showreel/showreel.tsx`** to point to your demo reel video.
-
-### 6. Add your resume
-
-Place your résumé PDF at **`public/resume.pdf`**.
-
-### 7. Add project images
-
-Place project thumbnails/posters in **`public/images/projects/`**.
-
-### 8. Add project videos
-
-Place local video files in **`public/videos/`**.
-
-## Connecting Services
-
-### Contact Form Email Delivery
-
-The contact form (`src/app/actions/contact.ts`) validates and processes submissions server-side. To send emails:
-
-1. Install a provider: `npm install resend` (or `@sendgrid/mail`, `postmark`, etc.)
-2. Add your API key to `.env.local`:
-   ```
-   RESEND_API_KEY=re_xxxxx
-   ```
-3. Wire up the send call in `contact.ts` (see the TODO comment in the file).
-
-### Analytics
-
-The analytics abstraction (`src/lib/analytics.ts`) provides a `track()` function that logs to console in development. To connect a real provider:
-
-- **PostHog**: Install `posthog-js`, initialize in layout, dispatch events in `analytics.ts`
-- **Plausible**: Add the script tag in layout, use `window.plausible()` in `dispatch()`
-- **Vercel Analytics**: Install `@vercel/analytics`, add `<Analytics />` to layout
-
-## Deploy to Vercel
+### Other Commands
 
 ```bash
-# Install Vercel CLI
-npm i -g vercel
-
-# Deploy
-vercel
-
-# Or connect your GitHub repo at vercel.com/new
+npm run build        # Production build
+npm run start        # Start production server
+npm run lint         # ESLint check
+npm run type-check   # TypeScript compiler check (if configured)
 ```
 
-Environment variables to set in Vercel:
-- `RESEND_API_KEY` (if using Resend for contact form)
+---
+
+## Environment Variables
+
+| Variable | Default | Description |
+|---|---|---|
+| `ADMIN_PASSWORD` | `portfolio2024` | Password for the `/admin` upload panel |
+| `NEXT_PUBLIC_SITE_URL` | `http://localhost:3000` | Public site URL used for SEO meta tags, Open Graph, and sitemap generation |
+
+Create a `.env.local` file in the project root for local development:
+
+```env
+ADMIN_PASSWORD=your-secure-password
+NEXT_PUBLIC_SITE_URL=http://localhost:3000
+```
+
+> **Note:** `ADMIN_PASSWORD` should be changed from the default before any public deployment.
+
+---
+
+## Content Files
+
+All site content lives in `src/content/`. Edit these TypeScript files to update the portfolio — no CMS required.
+
+### `src/content/profile.ts`
+
+Central profile configuration:
+
+- **Name & headline** — displayed in the Hero section
+- **About text** — rendered in the About section
+- **Snapshot numbers** — key stats (years of experience, projects delivered, etc.)
+- **Contact details** — email, phone, LinkedIn, GitHub URLs
+- **SEO metadata** — title, description, Open Graph image, keywords
+
+### `src/content/experience.ts`
+
+Work history rendered as an accordion timeline. Each entry is an object with:
+
+- Company name, role, dates
+- Location
+- Description / bullet points of responsibilities and achievements
+- Tech stack tags
+
+**To add a new role:** add a new object to the exported array. The most recent entry should be first.
+
+### `src/content/projects.ts`
+
+Project showcase with video support. Each project can include:
+
+- Title, description, tech stack tags
+- Thumbnail image path
+- Video source: local file (`/videos/...`), YouTube URL, or Vimeo URL
+- Live URL and source code URL
+- Featured flag (featured projects get larger cards)
+
+### `src/content/expertise.ts`
+
+Skill categories displayed as an animated grid. Each category has:
+
+- Category name (e.g., "Cloud & Infrastructure", "CI/CD & Automation")
+- Array of skill chips with name and optional proficiency level
+
+### `src/content/certifications.ts`
+
+Certificates and accolades. Each entry includes:
+
+- Certificate name, issuing authority
+- Date earned, expiry date (if applicable)
+- Verification URL
+- Badge image path
+
+### `src/content/snippets.ts`
+
+Code snippets showcase. Each snippet has:
+
+- Title and description
+- Language (for syntax highlighting)
+- Code string
+- Tags
+
+---
+
+## Adding a Project
+
+1. **Add the entry** to `src/content/projects.ts`:
+
+   ```typescript
+   {
+     title: 'Kubernetes Auto-Scaler',
+     description: 'Custom HPA controller for cost-optimised scaling...',
+     techStack: ['Go', 'Kubernetes', 'Prometheus'],
+     thumbnail: '/images/projects/k8s-autoscaler.png',
+     video: '/videos/k8s-autoscaler-demo.mp4',  // or YouTube/Vimeo URL
+     liveUrl: 'https://github.com/ameya-godbole/k8s-autoscaler',
+     sourceUrl: 'https://github.com/ameya-godbole/k8s-autoscaler',
+     featured: true,
+   }
+   ```
+
+2. **Drop the video** into `public/videos/` (for local video files).
+
+3. **Add the thumbnail** to `public/images/projects/`.
+
+4. **Restart dev server** if it's running — content files are imported at build time.
+
+---
+
+## Admin Panel (`/admin`)
+
+The admin panel at `/admin` provides a browser-based upload interface for managing media and content assets without touching code.
+
+### Authentication
+
+- **Default password:** `portfolio2024`
+- **To change:** set the `ADMIN_PASSWORD` environment variable (see [Environment Variables](#environment-variables))
+- Session-based auth; password checked server-side
+
+### Upload Tabs
+
+| Tab | Purpose | Upload destination |
+|---|---|---|
+| **Photos** | Gallery images, profile photos | `public/images/` |
+| **Documents** | Résumé, PDFs, reference letters | `public/documents/` |
+| **Videos** | Project demos, showreel clips | `public/videos/` |
+| **Certificates** | Certification badges and images | `public/images/certifications/` |
+| **Code Snippets** | `.ts`, `.py`, `.sh` files for the snippets section | `public/snippets/` |
+
+Uploaded files are written to the `public/` directory and are immediately available at their corresponding URL paths.
+
+---
+
+## Deployment (Vercel)
+
+The recommended deployment target is [Vercel](https://vercel.com) — zero-config for Next.js.
+
+### Steps
+
+1. Go to [vercel.com/new](https://vercel.com/new) and import the `ameya-godbole/portfolio` repository.
+
+2. Add environment variables in the Vercel dashboard:
+
+   | Variable | Value |
+   |---|---|
+   | `ADMIN_PASSWORD` | Your secure password |
+   | `NEXT_PUBLIC_SITE_URL` | `https://your-domain.vercel.app` (or custom domain) |
+
+3. Click **Deploy**. Vercel auto-detects the Next.js framework and handles build settings.
+
+4. *(Optional)* Add a custom domain under **Settings → Domains**.
+
+### Automatic Deployments
+
+- Every push to `main` triggers a production deployment.
+- Pull requests get preview deployments with unique URLs.
+- Environment variables can be scoped per environment (Production / Preview / Development).
+
+---
+
+## CI/CD Pipeline
+
+This project uses **GitHub Actions** for continuous integration and delivery. The pipeline follows a clean separation:
+
+- **CI (Build & Test):** Checkout → Maven Build → Test → Artifact
+- **CD (Publish & Deploy):** Docker Build → Push to Amazon ECR → Secrets from HashiCorp Vault → Deploy to AWS EC2
+
+Key design principles:
+
+- **No secrets baked into the pipeline** — application secrets are fetched from HashiCorp Vault at deploy time
+- **IAM OIDC** for AWS authentication (no long-lived access keys)
+- **Image scanning** with Trivy before push
+- **Health-check gated deploys** with automatic rollback
+
+📖 **Full pipeline architecture and reference:** [`docs/cicd-pipeline.md`](docs/cicd-pipeline.md)
+
+🔧 **Pipeline YAML:** [`.github/workflows/ci-cd.yml`](.github/workflows/ci-cd.yml)
+
+---
+
+## Tech Stack
+
+| Layer | Technology |
+|---|---|
+| Framework | Next.js 16 |
+| Language | TypeScript |
+| Styling | Tailwind CSS |
+| Animations | Framer Motion |
+| Deployment | Vercel / Docker + AWS EC2 |
+| CI/CD | GitHub Actions |
+| Secrets | HashiCorp Vault |
+| Container Registry | Amazon ECR |
+| Infra Auth | AWS IAM OIDC |
+
+---
 
 ## Project Structure
 
 ```
-src/
-├── app/
-│   ├── actions/contact.ts      # Server action for contact form
-│   ├── projects/[slug]/page.tsx # Dynamic project detail pages
-│   ├── globals.css              # Design tokens & base styles
-│   ├── layout.tsx               # Root layout with fonts, nav, footer
-│   └── page.tsx                 # Homepage composition
-├── components/
-│   ├── about/                   # About section
-│   ├── contact/                 # Contact section + form
-│   ├── experience/              # Career timeline
-│   ├── expertise/               # Skills grid
-│   ├── footer/                  # Site footer
-│   ├── hero/                    # Hero + snapshot metrics
-│   ├── navigation/              # Navbar with theme toggle
-│   ├── project-video/           # Video player (local/YouTube/Vimeo)
-│   ├── projects/                # Project cards + section
-│   ├── showreel/                # Featured video reel
-│   ├── testimonials/            # Testimonials grid
-│   └── ui/                      # Shared UI primitives
-├── content/
-│   ├── experience.ts            # Career timeline data
-│   ├── expertise.ts             # Skills & expertise data
-│   ├── profile.ts               # Personal info, hero, about, SEO
-│   └── projects.ts              # Project case studies
-└── lib/
-    ├── analytics.ts             # Analytics abstraction
-    └── utils.ts                 # cn() and helpers
+portfolio/
+├── .github/
+│   └── workflows/
+│       └── ci-cd.yml            # GitHub Actions pipeline
+├── docs/
+│   └── cicd-pipeline.md         # Pipeline deep-dive reference
+├── public/
+│   ├── images/                  # Static images (gallery, projects, certs)
+│   ├── videos/                  # Local video files
+│   ├── documents/               # Downloadable PDFs
+│   └── snippets/                # Code snippet files
+├── src/
+│   ├── app/                     # Next.js app router pages
+│   │   ├── admin/               # Admin upload panel
+│   │   └── ...
+│   ├── components/              # React components (sections, UI)
+│   ├── content/                 # ← Edit these to update site content
+│   │   ├── profile.ts
+│   │   ├── experience.ts
+│   │   ├── projects.ts
+│   │   ├── expertise.ts
+│   │   ├── certifications.ts
+│   │   └── snippets.ts
+│   ├── hooks/                   # Custom React hooks
+│   └── lib/                     # Utilities, helpers
+├── .env.local                   # Local environment variables (git-ignored)
+├── next.config.ts               # Next.js configuration
+├── tailwind.config.ts           # Tailwind configuration
+├── tsconfig.json                # TypeScript configuration
+└── package.json
 ```
 
-## Tech Stack
+---
 
-- **Next.js 16** (App Router)
-- **React 19**
-- **TypeScript 5**
-- **Tailwind CSS 4** with `@tailwindcss/postcss`
-- **Framer Motion** for animations
-- **Lucide React** for icons
-- **Zod** for form validation
-- **class-variance-authority** for component variants
+## License
+
+Private repository. All rights reserved.
+
+---
+
+## Author
+
+**Ameya Godbole** — DevOps & Cloud Engineer
+
+- 🌐 [LinkedIn](https://linkedin.com/in/ameya-godbole1)
+- 💻 [GitHub](https://github.com/ameya-godbole)
